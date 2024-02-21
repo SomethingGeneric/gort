@@ -193,11 +193,52 @@ class GiteaApi:
 
         return response.json()
 
+    def get_repo(self, owner, repo):
+        """
+        Retrieves a specific repository.
+
+        Args:
+            owner (str): The owner of the repository.
+            repo (str): The name of the repository.
+
+        Returns:
+            dict or str: The JSON response containing the repository if successful, or the error message if unsuccessful.
+        """
+        response = requests.get(
+            f"{self.url}/api/v1/repos/{owner}/{repo}",
+            headers={"Authorization": f"token {self.token}"},
+        )
+        try:
+            return response.json()
+        except:
+            return {"msg": response.text}
+
+    def fork_repo(self, owner, repo):
+        """
+        Forks a repository.
+
+        Args:
+            owner (str): The owner of the repository.
+            repo (str): The name of the repository.
+
+        Returns:
+            dict or str: The JSON response containing the repository if successful, or the error message if unsuccessful.
+        """
+        response = requests.post(
+            f"{self.url}/api/v1/repos/{owner}/{repo}/forks",
+            headers={"Authorization": f"token {self.token}"},
+            json={"name": repo},
+        )
+        try:
+            return response.json()
+        except:
+            return {"msg": response.text}
+
+
 if __name__ == "__main__":
     import toml
+
     g = GiteaApi(toml.load("config.toml"))
 
-    repos = g.get_user_repos("matt")
-
-    for repo in repos:
-        print(repo["name"])
+    if "couldn't be found" in g.get_repo("gort", "website")["message"]:
+        print(g.fork_repo("matt", "website"))

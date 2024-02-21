@@ -50,7 +50,7 @@ while running:
     for user in names:
         repos = mygit.get_user_repos(user)
         for repo in repos:
-            #print("Checking", user, repo['name'])
+            # print("Checking", user, repo['name'])
             issues = mygit.get_issues(user, repo["name"])
 
             for issue in issues:
@@ -72,13 +72,18 @@ while running:
                             continue
 
                     ai_resp = aihelper.get_response(
-                        comments, issue["title"], issue["body"]
+                        comments,
+                        issue["title"],
+                        issue["body"],
+                        user + "/" + repo["name"],
                     )
+
+                    print("Got from AI: ", ai_resp)
 
                     mygit.post_issue_comment(user, repo["name"], n, ai_resp)
 
                     print("Posted response to issue", n, "in", user, repo["name"])
 
-    print("Sleeping for 60 seconds...")
-    time.sleep(60)
+    print("Sleeping for 30 seconds...")  # TODO: print dots for second
+    time.sleep(30)
     print("Restarting loop")

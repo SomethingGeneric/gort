@@ -1,8 +1,11 @@
-import openai
-
-import os, json, subprocess
+import os, json, subprocess, shutil
 from time import sleep
 import subprocess
+
+import openai
+
+from git import GiteaApi
+
 
 def run_shell_command(command):
     try:
@@ -13,12 +16,15 @@ def run_shell_command(command):
     except Exception as e:
         return -1, str(e)
 
+
 class llmUtils:
     def __init__(self, config):
         self.config = config
-        openai.api_key = config['ai_token']
+        openai.api_key = config["ai_token"]
 
-        self.assistant = openai.beta.assistants.retrieve(config['ai_assistant_id'])
+        self.assistant = openai.beta.assistants.retrieve(config["ai_assistant_id"])
+
+        self.git = GiteaApi(config)
 
         self.main_prompt = """
 You are a helpful junior developer named Gort. You are working on a project with a coworker.
@@ -34,6 +40,8 @@ You *can* use markdown formatting if you want to.
 Do not respond ONLY with code. Explain what the code does and why it is needed.
 
 Explain what you want the user to do, rather than just telling them what to do.
+
+If you use a function, like the shell, ALWAYS show the output of the function to the user.
 
 """
 
@@ -51,15 +59,15 @@ Explain what you want the user to do, rather than just telling them what to do.
             dialogue.append(message)
         return dialogue
 
-    def get_response(self, comments, title, body): 
-        thread = openai.beta.threads.create() # TODO: save a thread for each issue, and load it if it exists
+    def get_response(self, comments, title, body, repo_slug):
+        thread = (
+            openai.beta.threads.create()
+        )  # TODO: save a thread for each issue, and load it if it exists
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
         for item in msg:
             openai.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=item["content"]
+                thread_id=thread.id, role="user", content=item["content"]
             )
         try:
             run = openai.beta.threads.runs.create(
@@ -71,7 +79,9 @@ Explain what you want the user to do, rather than just telling them what to do.
 
             while not finished:
 
-                run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+                run = openai.beta.threads.runs.retrieve(
+                    thread_id=thread.id, run_id=run.id
+                )
 
                 if run.status == "completed":
                     finished = True
@@ -96,8 +106,23 @@ Explain what you want the user to do, rather than just telling them what to do.
                         outputs = []
 
                         if "shell" in name:
+                            # prep work
+                            owner = repo_slug.split("/")[0].strip()
+                            repo = repo_slug.split("/")[1].strip()
+
+                            if (
+                                "couldn't be found"
+                                in self.git.get_repo("gort", repo)["message"]
+                            ):
+                                # need to fork
+                                print(self.git.fork_repo(owner, repo))
+
+                            os.system(
+                                f"git clone {self.config['endpoint']}/gort/{repo}.git"
+                            )
+
                             # required
-                            command = arguments_dict["command"]
+                            command = f"cd {repo} && " + arguments_dict["command"]
 
                             code, outp = run_shell_command(command)
 
@@ -113,6 +138,8 @@ Explain what you want the user to do, rather than just telling them what to do.
 
                             outputs.append(me)
 
+                            shutil.rmtree(repo)
+
                         else:
                             print("Unknown action name: " + str(name))
 
@@ -122,8 +149,9 @@ Explain what you want the user to do, rather than just telling them what to do.
                             tool_outputs=outputs,
                         )
 
-                sleep(10)
+                sleep(5)  # TODO: some kind of exponential backoff
 
         except Exception as e:
-            return str(e)
-
+            return "BIG BAD ERROR: " + str(
+                e
+            )  # TODO: figure out why some of the OpenAI functions (I think?) only bubble up as just 'message' instead of a good error message.
