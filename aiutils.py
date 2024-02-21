@@ -1,11 +1,13 @@
-import requests
 import openai
 
+import os, json
 
 class llmUtils:
     def __init__(self, config):
-        self.source = config['ai_source']
-        self.token = config['ai_token'] if self.source == "openai" else None
+        self.config = config
+        openai.api_key = config['ai_token']
+
+        self.assistant = openai.beta.assistants.retrieve(config['ai_assistant_id'])
 
         self.main_prompt = """
 You are a helpful junior developer named Gort. You are working on a project with a coworker.
@@ -20,11 +22,11 @@ You *can* use markdown formatting if you want to.
 
 Do not respond ONLY with code. Explain what the code does and why it is needed.
 
+Explain what you want the user to do, rather than just telling them what to do.
+
 """
 
     def create_messages_from_comments(self, comments, title, body):
-
-        #print(comments)
 
         dialogue = [{"role": "user", "content": "Issue is titled: " + title}]
         dialogue.append({"role": "user", "content": "Issue body: " + body})
@@ -38,40 +40,95 @@ Do not respond ONLY with code. Explain what the code does and why it is needed.
             dialogue.append(message)
         return dialogue
 
-    def get_response(self, comments, title, body):
-        
-
+    def get_response(self, comments, title, body): 
+        thread = openai.beta.threads.create()
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
+        for item in msg:
+            openai.beta.threads.messages.create(
+                thread_id=thread.id,
+                role=item["role"],
+                content=item["content"]
+            )
+        try:
+            run = openai.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=self.assistant.id,
+            )
 
-        if self.source == "ollama":
+            finished = False
 
-            url = "http://127.0.0.1:11434/api/chat"
-            data = {
-                "model": "llama2-uncensored",
-                "messages": msg,
-                "stream": False,
-                "format": "json",
-            }
-            response = requests.post(url, json=data)
-            try:
-                thresponse = response.json()['message']['content']
-            except:
-                thresponse = response.text
+            while not finished:
 
-            return thresponse
-        elif self.source == "openai":
-            try:
-                client = openai.OpenAI(api_key=self.token)
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=msg,
-                )
+                run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 
-                thresponse = response.choices[0].message.content.strip()
+                if run.status == "completed":
+                    finished = True
+                    omessages = openai.beta.threads.messages.list(thread_id=thread.id)
+                    omessage = omessages.data[0]
+                    raw_resp = omessage.content[0].text.value
+                    return raw_resp
+                elif run.status == "failed":
+                    finished = True
+                    return "The AI failed to generate a response."
+                elif run.status == "requires_action":
+                    action = run.required_action
+                    for thing in action.submit_tool_outputs.tool_calls:
+                        arguments_json = thing.function.arguments
+                        arguments_dict = json.loads(arguments_json)
 
-                return thresponse
-            except Exception as e:
-                return str(e)
-        else:
-            return "Not implemented/valid"
+                        name = thing.function.name
+                        call_id = thing.id
+
+                        print(f"Doing action {str(name)} for call: {str(call_id)}")
+
+                        outputs = []
+
+                        if "proxmox" in name:
+                            # required:
+                            action_path = arguments_dict["action_path"]
+                            http_type = arguments_dict["request_method"]
+
+                            # opt:
+                            ext_params = (
+                                arguments_dict["params"]
+                                if "params" in arguments_dict.keys()
+                                else None
+                            )
+
+                            # print("Got a proxmox action")
+                            # print("Action path: " + action_path)
+                            # print("Call ID: " + call_id)
+
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": str(
+                                    do_proxmox(http_type, action_path, ext_params)
+                                ),
+                            }
+
+                            outputs.append(me)
+
+                        elif "shell" in name:
+                            # required
+                            command = arguments_dict["command"]
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": str(run_shell_command(command)),
+                            }
+
+                            outputs.append(me)
+
+                        else:
+                            print("Unknown action name: " + str(name))
+                            e_log("Unknown action name: " + str(name))
+
+                        run = openai.beta.threads.runs.submit_tool_outputs(
+                            thread_id=thread.id,
+                            run_id=run.id,
+                            tool_outputs=outputs,
+                        )
+
+        except Exception as e:
+            return str(e)
+

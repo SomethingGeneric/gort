@@ -188,6 +188,7 @@ class GiteaApi:
         response = requests.post(
             f"{self.url}/api/v1/repos/{owner}/{repo}/issues/{issuen}/comments",
             headers={"Authorization": f"token {self.token}"},
-            json={"body": comment})
-        
+            json={"body": comment},
+        )
+
         return response.json()

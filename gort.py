@@ -66,7 +66,9 @@ while running:
                             print("I was the last commenter, skipping...")
                             continue
 
-                    ai_resp = aihelper.get_response(comments, issue['title'], issue['body'])
+                    ai_resp = aihelper.get_response(
+                        comments, issue["title"], issue["body"]
+                    )
 
                     mygit.post_issue_comment(user, repo["name"], n, ai_resp)
 
@@ -74,5 +76,3 @@ while running:
 
     print("Sleeping for 60 seconds...")
     time.sleep(60)
-
-
