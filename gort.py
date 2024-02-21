@@ -13,6 +13,9 @@ if not os.path.exists("config.toml"):
     username = input("Enter your Gitea username: ")
     password = getpass.getpass("Enter your Gitea password: ")
     token = getpass.getpass("Enter your Gitea token: ")
+    ai_token = getpass.getpass("Enter your OpenAI token: ")
+    ai_assistant_id = input("Enter your OpenAI assistant ID: ")
+
     with open("config.toml", "w") as f:
         toml.dump(
             {
@@ -20,6 +23,8 @@ if not os.path.exists("config.toml"):
                 "username": username,
                 "password": password,
                 "token": token,
+                "ai_token": ai_token,
+                "ai_assistant_id": ai_assistant_id,
             },
             f,
         )
@@ -32,7 +37,7 @@ with open("config.toml") as f:
 mygit = GiteaApi(config)
 aihelper = llmUtils(config)
 
-ignored_users = None
+ignored_users = []
 if "ignored_users" in config:
     ignored_users = config["ignored_users"]
 
@@ -45,7 +50,7 @@ while running:
     for user in names:
         repos = mygit.get_user_repos(user)
         for repo in repos:
-            # print("Checking", user, repo['name'])
+            #print("Checking", user, repo['name'])
             issues = mygit.get_issues(user, repo["name"])
 
             for issue in issues:
@@ -76,3 +81,4 @@ while running:
 
     print("Sleeping for 60 seconds...")
     time.sleep(60)
+    print("Restarting loop")

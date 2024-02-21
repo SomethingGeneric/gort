@@ -192,3 +192,12 @@ class GiteaApi:
         )
 
         return response.json()
+
+if __name__ == "__main__":
+    import toml
+    g = GiteaApi(toml.load("config.toml"))
+
+    repos = g.get_user_repos("matt")
+
+    for repo in repos:
+        print(repo["name"])

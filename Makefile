@@ -1,4 +1,6 @@
-models:
-	ollama create explaingen -f explaingen/Modelfile
-	ollama create codegen -f codegen/Modelfile
-	sudo systemctl restart ollama
+pipsetup:
+	python3 -m venv venv
+	venv/bin/pip install -r requirements.txt
+
+do:
+	venv/bin/python3 gort.py

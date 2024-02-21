@@ -1,6 +1,17 @@
 import openai
 
-import os, json
+import os, json, subprocess
+from time import sleep
+import subprocess
+
+def run_shell_command(command):
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        exit_code = result.returncode
+        stdout = result.stdout.strip()
+        return exit_code, stdout
+    except Exception as e:
+        return -1, str(e)
 
 class llmUtils:
     def __init__(self, config):
@@ -41,13 +52,13 @@ Explain what you want the user to do, rather than just telling them what to do.
         return dialogue
 
     def get_response(self, comments, title, body): 
-        thread = openai.beta.threads.create()
+        thread = openai.beta.threads.create() # TODO: save a thread for each issue, and load it if it exists
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
         for item in msg:
             openai.beta.threads.messages.create(
                 thread_id=thread.id,
-                role=item["role"],
+                role="user",
                 content=item["content"]
             )
         try:
@@ -84,50 +95,34 @@ Explain what you want the user to do, rather than just telling them what to do.
 
                         outputs = []
 
-                        if "proxmox" in name:
-                            # required:
-                            action_path = arguments_dict["action_path"]
-                            http_type = arguments_dict["request_method"]
-
-                            # opt:
-                            ext_params = (
-                                arguments_dict["params"]
-                                if "params" in arguments_dict.keys()
-                                else None
-                            )
-
-                            # print("Got a proxmox action")
-                            # print("Action path: " + action_path)
-                            # print("Call ID: " + call_id)
-
-                            me = {
-                                "tool_call_id": call_id,
-                                "output": str(
-                                    do_proxmox(http_type, action_path, ext_params)
-                                ),
-                            }
-
-                            outputs.append(me)
-
-                        elif "shell" in name:
+                        if "shell" in name:
                             # required
                             command = arguments_dict["command"]
+
+                            code, outp = run_shell_command(command)
+
+                            res = {
+                                "exit_code": code,
+                                "stdout": outp,
+                            }
+
                             me = {
                                 "tool_call_id": call_id,
-                                "output": str(run_shell_command(command)),
+                                "output": str(res),
                             }
 
                             outputs.append(me)
 
                         else:
                             print("Unknown action name: " + str(name))
-                            e_log("Unknown action name: " + str(name))
 
                         run = openai.beta.threads.runs.submit_tool_outputs(
                             thread_id=thread.id,
                             run_id=run.id,
                             tool_outputs=outputs,
                         )
+
+                sleep(10)
 
         except Exception as e:
             return str(e)
