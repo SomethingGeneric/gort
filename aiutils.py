@@ -39,9 +39,12 @@ You *can* use markdown formatting if you want to.
 
 Do not respond ONLY with code. Explain what the code does and why it is needed.
 
-Explain what you want the user to do, rather than just telling them what to do.
-
 If you use a function, like the shell, ALWAYS show the output of the function to the user.
+
+When you use the shell, and you SHOULD use the shell to modify files, the state of all files will be automatically committed and pushed to the repository.
+You do not need to do this manually.
+You SHOULD keep in mind that this happens, and you should not commit and push changes manually.
+Consider the state of the repository when you are making changes.
 
 """
 
@@ -65,93 +68,110 @@ If you use a function, like the shell, ALWAYS show the output of the function to
         )  # TODO: save a thread for each issue, and load it if it exists
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
+
+        #print("Messages: " + str(msg))
+
         for item in msg:
             openai.beta.threads.messages.create(
                 thread_id=thread.id, role="user", content=item["content"]
             )
-        try:
-            run = openai.beta.threads.runs.create(
-                thread_id=thread.id,
-                assistant_id=self.assistant.id,
-            )
 
-            finished = False
+        run = openai.beta.threads.runs.create(
+            thread_id=thread.id,
+            assistant_id=self.assistant.id,
+        )
 
-            while not finished:
+        finished = False
 
-                run = openai.beta.threads.runs.retrieve(
-                    thread_id=thread.id, run_id=run.id
-                )
+        while not finished:
 
-                if run.status == "completed":
-                    finished = True
-                    omessages = openai.beta.threads.messages.list(thread_id=thread.id)
-                    omessage = omessages.data[0]
-                    raw_resp = omessage.content[0].text.value
-                    return raw_resp
-                elif run.status == "failed":
-                    finished = True
-                    return "The AI failed to generate a response."
-                elif run.status == "requires_action":
-                    action = run.required_action
-                    for thing in action.submit_tool_outputs.tool_calls:
-                        arguments_json = thing.function.arguments
-                        arguments_dict = json.loads(arguments_json)
+            run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 
-                        name = thing.function.name
-                        call_id = thing.id
+            if run.status == "completed":
+                finished = True
+                omessages = openai.beta.threads.messages.list(thread_id=thread.id)
+                omessage = omessages.data[0]
+                raw_resp = omessage.content[0].text.value
+                return raw_resp
+            elif run.status == "failed":
+                finished = True
+                return "The AI failed to generate a response."
+            elif run.status == "requires_action":
+                action = run.required_action
+                for thing in action.submit_tool_outputs.tool_calls:
+                    arguments_json = thing.function.arguments
+                    arguments_dict = json.loads(arguments_json)
 
-                        print(f"Doing action {str(name)} for call: {str(call_id)}")
+                    name = thing.function.name
+                    call_id = thing.id
 
-                        outputs = []
+                    print(f"Doing action {str(name)} for call: {str(call_id)}")
 
-                        if "shell" in name:
-                            # prep work
-                            owner = repo_slug.split("/")[0].strip()
-                            repo = repo_slug.split("/")[1].strip()
+                    outputs = []
 
-                            if (
-                                "couldn't be found"
-                                in self.git.get_repo("gort", repo)["message"]
-                            ):
-                                # need to fork
-                                print(self.git.fork_repo(owner, repo))
+                    if "shell" in name:
+                        # prep work
+                        owner = repo_slug.split("/")[0].strip()
+                        repo = repo_slug.split("/")[1].strip()
 
-                            os.system(
-                                f"git clone {self.config['endpoint']}/gort/{repo}.git"
-                            )
+                        if (
+                            "message" in self.git.get_repo("gort", repo).keys()
+                            and "couldn't be found"
+                            in self.git.get_repo("gort", repo)["message"]
+                        ):
+                            # need to fork
+                            print(self.git.fork_repo(owner, repo))
 
-                            # required
-                            command = f"cd {repo} && " + arguments_dict["command"]
-
-                            code, outp = run_shell_command(command)
-
-                            res = {
-                                "exit_code": code,
-                                "stdout": outp,
-                            }
-
-                            me = {
-                                "tool_call_id": call_id,
-                                "output": str(res),
-                            }
-
-                            outputs.append(me)
-
-                            shutil.rmtree(repo)
-
-                        else:
-                            print("Unknown action name: " + str(name))
-
-                        run = openai.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread.id,
-                            run_id=run.id,
-                            tool_outputs=outputs,
+                        os.system(
+                            f"git clone {self.config['endpoint']}/gort/{repo}.git"
                         )
 
-                sleep(5)  # TODO: some kind of exponential backoff
+                        # required
+                        command = f"cd {repo} && " + arguments_dict["command"]
 
-        except Exception as e:
-            return "BIG BAD ERROR: " + str(
-                e
-            )  # TODO: figure out why some of the OpenAI functions (I think?) only bubble up as just 'message' instead of a good error message.
+                        code, outp = run_shell_command(command)
+
+                        res = {
+                            "exit_code": code,
+                            "stdout": outp,
+                        }
+
+                        me = {
+                            "tool_call_id": call_id,
+                            "output": str(res),
+                        }
+
+                        outputs.append(me)
+
+                        # Check for changes using git status
+                        command = f"cd {repo} && git status --porcelain"
+                        code, outp = run_shell_command(command)
+                        if outp:  # If there is output, changes are detected
+                            try:
+                                # Git commit changes
+                                commit_cmd = f"cd {repo} && git add . && git commit -m 'Automated commit by AI assistant'"
+                                commit_code, commit_outp = run_shell_command(commit_cmd)
+                                print(f"Commit operation output: {commit_outp}")
+
+                                # Git push changes
+                                push_cmd = f"cd {repo} && git push origin"
+                                push_code, push_outp = run_shell_command(push_cmd)
+                                print(f"Push operation output: {push_outp}")
+                            except Exception as push_exception:
+                                print(
+                                    f"An error occurred while pushing changes: {push_exception}"
+                                )
+
+                        # Continue with the original code to remove the local repository copy
+                        shutil.rmtree(repo)
+
+                    else:
+                        print("Unknown action name: " + str(name))
+
+                    run = openai.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread.id,
+                        run_id=run.id,
+                        tool_outputs=outputs,
+                    )
+
+            sleep(5)  # TODO: some kind of exponential backoff
