@@ -234,6 +234,38 @@ class GiteaApi:
         except:
             return {"msg": response.text}
 
+    def create_pull_request(
+        self, owner, repo, title, body, source_branch, target_branch
+    ):
+        """
+        Creates a pull request from a user's repository to the source repository.
+
+        Args:
+            owner (str): The owner of the user's repository.
+            repo (str): The name of the user's repository.
+            title (str): The title of the pull request.
+            body (str): The body of the pull request.
+            source_branch (str): The source branch of the pull request.
+            target_branch (str): The target branch of the pull request.
+
+        Returns:
+            dict or str: The JSON response containing the pull request if successful, or the error message if unsuccessful.
+        """
+        response = requests.post(
+            f"{self.url}/api/v1/repos/{owner}/{repo}/pulls",
+            headers={"Authorization": f"token {self.token}"},
+            json={
+                "title": title,
+                "body": body,
+                "head": source_branch,
+                "base": target_branch,
+            },
+        )
+        try:
+            return response.json()
+        except:
+            return {"msg": response.text}
+
 
 if __name__ == "__main__":
     import toml

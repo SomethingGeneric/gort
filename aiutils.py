@@ -7,9 +7,11 @@ import openai
 from git import GiteaApi
 
 
-def run_shell_command(command):
+def run_shell_command(command, cwd=None):
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command, cwd=cwd, shell=True, capture_output=True, text=True
+        )
         exit_code = result.returncode
         stdout = result.stdout.strip()
         return exit_code, stdout
@@ -39,12 +41,19 @@ You *can* use markdown formatting if you want to.
 
 Do not respond ONLY with code. Explain what the code does and why it is needed.
 
-If you use a function, like the shell, ALWAYS show the output of the function to the user.
+If you use the shell function, ALWAYS show the output of the function to the user.
 
-When you use the shell, and you SHOULD use the shell to modify files, the state of all files will be automatically committed and pushed to the repository.
-You do not need to do this manually.
-You SHOULD keep in mind that this happens, and you should not commit and push changes manually.
+Use the shell to access referenced files. Do not ask the user for the content of a file, you already have it.
+
 Consider the state of the repository when you are making changes.
+
+Once you are done reading and/or writing files, if you believe you have made changes that should persist in the repository, use the commit function to commit the changes to the remote repository.
+
+Keep in mind that multi-line formatting in the shell may not work.
+
+If you need to modify a file, you should use the writefile function to write the file.
+
+You can then inform the user of the changes you made and the commit message you used, and that the changes are now in the remote repository.
 
 """
 
@@ -69,8 +78,6 @@ Consider the state of the repository when you are making changes.
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
 
-        #print("Messages: " + str(msg))
-
         for item in msg:
             openai.beta.threads.messages.create(
                 thread_id=thread.id, role="user", content=item["content"]
@@ -80,6 +87,10 @@ Consider the state of the repository when you are making changes.
             thread_id=thread.id,
             assistant_id=self.assistant.id,
         )
+
+        # prep work
+        owner = repo_slug.split("/")[0].strip()
+        repo = repo_slug.split("/")[1].strip()
 
         finished = False
 
@@ -99,79 +110,168 @@ Consider the state of the repository when you are making changes.
             elif run.status == "requires_action":
                 action = run.required_action
                 for thing in action.submit_tool_outputs.tool_calls:
-                    arguments_json = thing.function.arguments
-                    arguments_dict = json.loads(arguments_json)
 
-                    name = thing.function.name
-                    call_id = thing.id
+                    try:
 
-                    print(f"Doing action {str(name)} for call: {str(call_id)}")
+                        arguments_json = thing.function.arguments
+                        arguments_dict = json.loads(arguments_json)
 
-                    outputs = []
+                        name = thing.function.name
+                        call_id = thing.id
 
-                    if "shell" in name:
-                        # prep work
-                        owner = repo_slug.split("/")[0].strip()
-                        repo = repo_slug.split("/")[1].strip()
+                        if not os.path.exists(repo):
+                            if (
+                                "message" in self.git.get_repo("gort", repo).keys()
+                                and "couldn't be found"
+                                in self.git.get_repo("gort", repo)["message"]
+                            ):
+                                # need to fork
+                                print(self.git.fork_repo(owner, repo))
 
-                        if (
-                            "message" in self.git.get_repo("gort", repo).keys()
-                            and "couldn't be found"
-                            in self.git.get_repo("gort", repo)["message"]
-                        ):
-                            # need to fork
-                            print(self.git.fork_repo(owner, repo))
+                            os.system(
+                                f"git clone {self.config['endpoint']}/gort/{repo}.git"
+                            )
+                        else:
+                            os.system(f"cd {repo} && git pull")
 
-                        os.system(
-                            f"git clone {self.config['endpoint']}/gort/{repo}.git"
-                        )
+                        print(f"Doing action {str(name)} for call: {str(call_id)}")
 
-                        # required
-                        command = f"cd {repo} && " + arguments_dict["command"]
+                        outputs = []
 
-                        code, outp = run_shell_command(command)
+                        if "shell" in name:
 
-                        res = {
-                            "exit_code": code,
-                            "stdout": outp,
-                        }
+                            # required
+                            command = arguments_dict["command"]
 
-                        me = {
-                            "tool_call_id": call_id,
-                            "output": str(res),
-                        }
+                            print("Running command: " + command)
 
-                        outputs.append(me)
-
-                        # Check for changes using git status
-                        command = f"cd {repo} && git status --porcelain"
-                        code, outp = run_shell_command(command)
-                        if outp:  # If there is output, changes are detected
                             try:
-                                # Git commit changes
-                                commit_cmd = f"cd {repo} && git add . && git commit -m 'Automated commit by AI assistant'"
-                                commit_code, commit_outp = run_shell_command(commit_cmd)
-                                print(f"Commit operation output: {commit_outp}")
+                                code, outp = run_shell_command(command, cwd=repo)
 
-                                # Git push changes
-                                push_cmd = f"cd {repo} && git push origin"
-                                push_code, push_outp = run_shell_command(push_cmd)
-                                print(f"Push operation output: {push_outp}")
+                                res = {
+                                    "exit_code": code,
+                                    "stdout": outp,
+                                }
+
+                                print("No exception occurred, exit code " + str(code))
+                            except Exception as e:
+                                res = {
+                                    "exit_code": -1,
+                                    "stdout": "The backend reports error: " + str(e),
+                                }
+                                print("Exception occurred, exit code " + str(code))
+
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": str(res),
+                            }
+
+                            outputs.append(me)
+
+                            print("Shell stats done")
+
+                        elif "gitlog" in name:
+                            command = "git --no-pager log"
+                            code, outp = run_shell_command(command, cwd=repo)
+
+                            res = {
+                                "exit_code": code,
+                                "stdout": outp,
+                            }
+
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": str(res),
+                            }
+
+                            outputs.append(me)
+                        elif "writefile" in name:
+                            try:
+                                filename = arguments_dict["path"]
+                                content = arguments_dict["content"]
+                                with open(f"{repo}/{filename}", "w") as f:
+                                    f.write(content)
+                                me = {
+                                    "tool_call_id": call_id,
+                                    "output": "File written successfully.",
+                                }
+                            except Exception as e:
+                                me = {
+                                    "tool_call_id": call_id,
+                                    "output": "Error writing file: " + str(e),
+                                }
+                            outputs.append(me)
+                        elif "commit" in name or "push" in name:
+                            try:
+
+                                command = "git status --porcelain"
+                                code, outp = run_shell_command(command, cwd=repo)
+                                if outp:  # If there is output, changes are detected
+                                    # Git commit changes
+                                    msg = arguments_dict["message"]
+                                    commit_cmd = (
+                                        f"&& git add . && git commit -m '{msg}'"
+                                    )
+                                    commit_code, commit_outp = run_shell_command(
+                                        commit_cmd, cwd=repo
+                                    )
+                                    print(f"Commit operation output: {commit_outp}")
+
+                                    # Git push changes
+                                    push_cmd = "git push origin"
+                                    push_code, push_outp = run_shell_command(
+                                        push_cmd, cwd=repo
+                                    )
+                                    print(f"Push operation output: {push_outp}")
+
+                                    res = {
+                                        "commit_code": commit_code,
+                                        "commit_stdout": commit_outp,
+                                        "push_code": push_code,
+                                        "push_stdout": push_outp,
+                                    }
+                                else:
+                                    res = {
+                                        "push_stdout": "No changes detected, no commit or push was made."
+                                    }
+
+                                me = {
+                                    "tool_call_id": call_id,
+                                    "output": str(res),
+                                }
+
+                                outputs.append(me)
+
                             except Exception as push_exception:
                                 print(
                                     f"An error occurred while pushing changes: {push_exception}"
                                 )
 
-                        # Continue with the original code to remove the local repository copy
-                        shutil.rmtree(repo)
+                                me = {
+                                    "tool_call_id": call_id,
+                                    "output": "Error occured: " + str(push_exception),
+                                }
 
-                    else:
-                        print("Unknown action name: " + str(name))
+                                outputs.append(me)
 
-                    run = openai.beta.threads.runs.submit_tool_outputs(
-                        thread_id=thread.id,
-                        run_id=run.id,
-                        tool_outputs=outputs,
-                    )
+                            shutil.rmtree(repo)
+
+                        else:
+                            print("Unknown action name: " + str(name))
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": "Unknown action name: " + str(name),
+                            }
+                            outputs.append(me)
+
+                        run = openai.beta.threads.runs.submit_tool_outputs(
+                            thread_id=thread.id,
+                            run_id=run.id,
+                            tool_outputs=outputs,
+                        )
+
+                    except Exception as e:
+                        print("An error occurred: " + str(e))
+                        return "An error occurred: " + str(e)
 
             sleep(5)  # TODO: some kind of exponential backoff
