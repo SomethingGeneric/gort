@@ -8,6 +8,16 @@ class GiteaApi:
         self.username = config["username"]
         self.password = config["password"]
         self.url = config["endpoint"]
+        self.endpoint = self.url
+        self.headers = {
+            'Authorization': f'token {self.token}',
+            'Content-Type': 'application/json'
+        }
+
+    def add_webhook(self, owner, repo, config):
+        url = f"{self.endpoint}/repos/{owner}/{repo}/hooks"
+        response = requests.post(url, headers=self.headers, data=json.dumps(config))
+        return response.json()
 
     def get_users(self):
         """
