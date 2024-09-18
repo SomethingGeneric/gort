@@ -283,11 +283,13 @@ Do NOT run git commands directly. Use the provided functions instead.
                                 "output": f"An error occurred: {str(e)}",
                             }
                         )
-
-                run = openai.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread.id,
-                    run_id=run.id,
-                    tool_outputs=outputs,
-                )
+                try:
+                    run = openai.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread.id,
+                        run_id=run.id,
+                        tool_outputs=outputs,
+                    )
+                except Exception as e:
+                    print(f"Error submitting tool outputs: {str(e)}")
 
             time.sleep(5)  # TODO: implement exponential backoff
