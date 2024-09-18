@@ -61,6 +61,9 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
 
 Do NOT run git commands directly. Use the provided functions instead.
 
+Once you've run the PR command, your job is done. The user will review the changes and merge them if they are correct.
+Do not continue to make changes after the PR command.
+
 """
 
     def create_messages_from_comments(self, comments, title, body=None):
@@ -206,7 +209,13 @@ Do NOT run git commands directly. Use the provided functions instead.
             elif run.status == "completed":
                 finished = True
                 shutil.rmtree(repo)
-                return run.messages[-1].content
+                # Ensure messages are present in the run
+                messages = getattr(run, 'messages', None)  # Safely access messages attribute
+                if messages and len(messages) > 0:
+                    # Return the content of the last message
+                    return messages[-1].content
+                else:
+                    return "No messages found in the run."
 
             elif run.status == "failed":
                 finished = True
