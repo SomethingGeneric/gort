@@ -39,6 +39,7 @@ if not os.path.exists("config.toml"):
                 "ai_assistant_id": ai_assistant_id,
                 'github_username': github_username,
                 'github_pat': github_pat,
+                'github_ssh_key': github_ssh_key,
             },
             f,
         )

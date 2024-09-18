@@ -130,7 +130,7 @@ You can then inform the user of the changes you made and the commit message you 
                                 print(self.git.fork_repo(owner, repo))
 
                             os.system(
-                                f"git clone https://github.com/therattestman/{repo}.git"
+                                f"git clone git@github.com:therattestman/{repo}.git"
                             )
                         else:
                             os.system(f"cd {repo} && git pull")
