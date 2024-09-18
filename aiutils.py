@@ -211,7 +211,7 @@ You can then inform the user of the changes you made and the commit message you 
                                     # Git commit changes
                                     msg = arguments_dict["message"]
                                     commit_cmd = (
-                                        f"&& git add . && git commit -m '{msg}'"
+                                        f"git add . && git commit -m '{msg}'"
                                     )
                                     commit_code, commit_outp = run_shell_command(
                                         commit_cmd, cwd=repo
