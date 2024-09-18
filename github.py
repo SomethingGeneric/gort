@@ -1,21 +1,20 @@
-# pip
 import requests
+import json
+import toml
+
+# pip
 
 
-class GiteaApi:
+class GitHubApi:
     def __init__(self, config):
-        self.token = config["token"]
-        self.username = config["username"]
-        self.password = config["password"]
-        self.url = config["endpoint"]
-        self.endpoint = self.url
+        self.token = config["github_pat"]
         self.headers = {
             'Authorization': f'token {self.token}',
             'Content-Type': 'application/json'
         }
 
     def add_webhook(self, owner, repo, config):
-        url = f"{self.endpoint}/repos/{owner}/{repo}/hooks"
+        url = f"https://api.github.com/repos/{owner}/{repo}/hooks"
         response = requests.post(url, headers=self.headers, data=json.dumps(config))
         return response.json()
 
@@ -26,18 +25,7 @@ class GiteaApi:
         Returns:
             list: A list of usernames.
         """
-        response = requests.get(
-            f"{self.url}/api/v1/admin/users",
-            headers={"Authorization": f"token {self.token}"},
-        )
-        try:
-            stuff = response.json()
-            usernames = []
-            for user in stuff:
-                usernames.append(user["username"])
-            return usernames
-        except:
-            return [response.text]
+        return ['SomethingGeneric']
 
     def get_user_orgs(self, username):
         """
@@ -53,14 +41,14 @@ class GiteaApi:
             Exception: If there is an error in the API response.
         """
         response = requests.get(
-            f"{self.url}/api/v1/users/{username}/orgs",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/users/{username}/orgs",
+            headers=self.headers,
         )
         try:
             stuff = response.json()
             orgs = []
             for org in stuff:
-                orgs.append(org["username"])
+                orgs.append(org["login"])
             return orgs
         except:
             return [response.text]
@@ -91,27 +79,28 @@ class GiteaApi:
             dict or str: A dictionary containing the JSON response if successful, or the response text if an error occurred.
         """
         response = requests.get(
-            f"{self.url}/api/v1/users/{username}/repos",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/users/{username}/repos",
+            headers=self.headers,
         )
         try:
             return response.json()
         except:
             return response.text
 
-    def get_prs(self, repo):
+    def get_prs(self, owner, repo):
         """
         Get a list of pull requests for a given repository.
 
         Args:
+            owner (str): The owner of the repository.
             repo (str): The name of the repository.
 
         Returns:
             list: A list of pull requests in JSON format, or the response text if an error occurs.
         """
         response = requests.get(
-            f"{self.url}/api/v1/repos/{repo}/pulls",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/pulls",
+            headers=self.headers,
         )
         try:
             return response.json()
@@ -131,64 +120,64 @@ class GiteaApi:
                          otherwise the raw response text.
         """
         response = requests.get(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/issues",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/issues",
+            headers=self.headers,
         )
         try:
             return response.json()
         except:
             return response.text
 
-    def get_issue(self, owner, repo, issuen):
+    def get_issue(self, owner, repo, issue_number):
         """
         Retrieves a specific issue from a repository.
 
         Args:
             owner (str): The owner of the repository.
             repo (str): The name of the repository.
-            issuen (int): The issue number.
+            issue_number (int): The issue number.
 
         Returns:
             dict or str: The JSON response containing the issue if successful, or the error message if unsuccessful.
         """
         response = requests.get(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/issues/{issuen}",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}",
+            headers=self.headers,
         )
         try:
             return response.json()
         except:
             return {"msg": response.text}
 
-    def get_issue_comments(self, owner, repo, issuen):
+    def get_issue_comments(self, owner, repo, issue_number):
         """
         Retrieves the comments for a specific issue in a repository.
 
         Args:
             owner (str): The owner of the repository.
             repo (str): The name of the repository.
-            issuen (int): The issue number.
+            issue_number (int): The issue number.
 
         Returns:
             dict or str: The JSON response containing the comments if successful, or the error message if unsuccessful.
         """
         response = requests.get(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/issues/{issuen}/comments",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            headers=self.headers,
         )
         try:
             return response.json()
         except:
             return {"msg": response.text}
 
-    def post_issue_comment(self, owner, repo, issuen, comment):
+    def post_issue_comment(self, owner, repo, issue_number, comment):
         """
         Posts a comment to a specific issue in a repository.
 
         Args:
             owner (str): The owner of the repository.
             repo (str): The name of the repository.
-            issuen (int): The issue number.
+            issue_number (int): The issue number.
             comment (str): The comment to post.
 
         Returns:
@@ -196,8 +185,8 @@ class GiteaApi:
         """
 
         response = requests.post(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/issues/{issuen}/comments",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            headers=self.headers,
             json={"body": comment},
         )
 
@@ -215,8 +204,8 @@ class GiteaApi:
             dict or str: The JSON response containing the repository if successful, or the error message if unsuccessful.
         """
         response = requests.get(
-            f"{self.url}/api/v1/repos/{owner}/{repo}",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}",
+            headers=self.headers,
         )
         try:
             return response.json()
@@ -235,8 +224,8 @@ class GiteaApi:
             dict or str: The JSON response containing the repository if successful, or the error message if unsuccessful.
         """
         response = requests.post(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/forks",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/forks",
+            headers=self.headers,
             json={"name": repo},
         )
         try:
@@ -245,7 +234,7 @@ class GiteaApi:
             return {"msg": response.text}
 
     def create_pull_request(
-        self, owner, repo, title, body, source_branch, target_branch
+        self, owner, repo, title, body, head_branch, base_branch
     ):
         """
         Creates a pull request from a user's repository to the source repository.
@@ -255,20 +244,20 @@ class GiteaApi:
             repo (str): The name of the user's repository.
             title (str): The title of the pull request.
             body (str): The body of the pull request.
-            source_branch (str): The source branch of the pull request.
-            target_branch (str): The target branch of the pull request.
+            head_branch (str): The source branch of the pull request.
+            base_branch (str): The target branch of the pull request.
 
         Returns:
             dict or str: The JSON response containing the pull request if successful, or the error message if unsuccessful.
         """
         response = requests.post(
-            f"{self.url}/api/v1/repos/{owner}/{repo}/pulls",
-            headers={"Authorization": f"token {self.token}"},
+            f"https://api.github.com/repos/{owner}/{repo}/pulls",
+            headers=self.headers,
             json={
                 "title": title,
                 "body": body,
-                "head": source_branch,
-                "base": target_branch,
+                "head": head_branch,
+                "base": base_branch,
             },
         )
         try:
@@ -278,9 +267,8 @@ class GiteaApi:
 
 
 if __name__ == "__main__":
-    import toml
 
-    g = GiteaApi(toml.load("config.toml"))
+    g = GitHubApi(toml.load("config.toml"))
 
-    if "couldn't be found" in g.get_repo("gort", "website")["message"]:
-        print(g.fork_repo("matt", "website"))
+    #print(g.get_repo('SomethingGeneric', 'gort'))
+    print(g.fork_repo('SomethingGeneric', 'gort'))

@@ -4,7 +4,7 @@ import subprocess
 
 import openai
 
-from git import GiteaApi
+from gitea import GiteaApi
 
 
 def run_shell_command(command, cwd=None):
@@ -129,7 +129,7 @@ You can then inform the user of the changes you made and the commit message you 
                                 print(self.git.fork_repo(owner, repo))
 
                             os.system(
-                                f"git clone {self.config['endpoint']}/gort/{repo}.git"
+                                f"git clone {self.config['gitea_endpoint']}/gort/{repo}.git"
                             )
                         else:
                             os.system(f"cd {repo} && git pull")
