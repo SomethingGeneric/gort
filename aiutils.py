@@ -205,10 +205,12 @@ Do NOT run git commands directly. Use the provided functions instead.
 
             elif run.status == "completed":
                 finished = True
+                shutil.rmtree(repo)
                 return run.messages[-1].content
 
             elif run.status == "failed":
                 finished = True
+                shutil.rmtree(repo)
                 return "I'm sorry, I encountered an error."
 
             time.sleep(1)  # Exponential backoff could also be applied here
