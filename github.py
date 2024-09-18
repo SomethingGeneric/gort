@@ -271,4 +271,4 @@ if __name__ == "__main__":
     g = GitHubApi(toml.load("config.toml"))
 
     #print(g.get_repo('SomethingGeneric', 'gort'))
-    print(g.fork_repo('SomethingGeneric', 'gort'))
+    print(g.get_repo('therattestman', 'gort'))
