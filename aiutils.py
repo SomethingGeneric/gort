@@ -64,6 +64,8 @@ Do NOT run git commands directly. Use the provided functions instead.
 Once you've run the PR command, your job is done. The user will review the changes and merge them if they are correct.
 Do not continue to make changes after the PR command.
 
+You should mention in your response that the PR has been created so the user knows to review it.
+
 """
 
     def create_messages_from_comments(self, comments, title, body=None):
@@ -209,13 +211,13 @@ Do not continue to make changes after the PR command.
             elif run.status == "completed":
                 finished = True
                 shutil.rmtree(repo)
-                # Ensure messages are present in the run
-                messages = getattr(run, 'messages', None)  # Safely access messages attribute
-                if messages and len(messages) > 0:
-                    # Return the content of the last message
-                    return messages[-1].content
-                else:
-                    return "No messages found in the run."
+                try:
+                    omessages = openai.beta.threads.messages.list(thread_id=thread.id)
+                    omessage = omessages.data[0]
+                    raw_resp = omessage.content[0].text.value
+                    return raw_resp
+                except Exception as e:
+                    return "I'm sorry, I encountered an error.\n```" + str(e) + "```"
 
             elif run.status == "failed":
                 finished = True
