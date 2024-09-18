@@ -29,7 +29,7 @@ class llmUtils:
         self.git = GitHubApi(config)
 
         self.main_prompt = """
-You are a helpful junior developer named Gort. You are working on a project with a coworker.
+You are a helpful junior developer named therattestman. You are working on a project with a coworker.
 Try to help them as best as you can.
 
 Feel free to ask the user for more information if you need it.
@@ -65,7 +65,7 @@ You can then inform the user of the changes you made and the commit message you 
 
         for comment in comments:
             usern = comment["user"]["login"] if "user" in comment else "mystery"
-            role = "user" if usern != "gort" else "assistant"
+            role = "user" if usern != "therattestman" else "assistant"
             body = comment["body"]
 
             message = {"role": role, "content": body}
@@ -122,15 +122,15 @@ You can then inform the user of the changes you made and the commit message you 
 
                         if not os.path.exists(repo):
                             if (
-                                "message" in self.git.get_repo("gort", repo).keys()
+                                "message" in self.git.get_repo("therattestman", repo).keys()
                                 and "couldn't be found"
-                                in self.git.get_repo("gort", repo)["message"]
+                                in self.git.get_repo("therattestman", repo)["message"]
                             ):
                                 # need to fork
                                 print(self.git.fork_repo(owner, repo))
 
                             os.system(
-                                f"git clone {self.config['gitea_endpoint']}/gort/{repo}.git"
+                                f"git clone https://github.com/therattestman/{repo}.git"
                             )
                         else:
                             os.system(f"cd {repo} && git pull")
