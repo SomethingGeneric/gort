@@ -78,8 +78,9 @@ Do NOT run git commands directly. Use the provided functions instead.
             dialogue.append(message)
         return dialogue
 
-    def process_tool_calls(self, tool_calls, owner, repo):
+    def process_tool_calls(self, tool_calls, repo_slug):
         outputs = []
+        owner, repo = repo_slug.split("/")
         for thing in tool_calls:
             try:
                 arguments_json = thing.function.arguments
@@ -170,7 +171,7 @@ Do NOT run git commands directly. Use the provided functions instead.
                 if len(tool_calls) > 0:
                     if not self.tool_lock:  # Only process if lock is released
                         self.tool_lock = True  # Lock while processing tool calls
-                        outputs = self.process_tool_calls(tool_calls, owner, repo_slug)
+                        outputs = self.process_tool_calls(tool_calls, repo_slug)
 
                         # Submit tool outputs
                         openai.beta.threads.runs.submit_tool_outputs(
