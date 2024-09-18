@@ -123,7 +123,7 @@ You can then inform the user of the changes you made and the commit message you 
                         if not os.path.exists(repo):
                             if (
                                 "message" in self.git.get_repo("therattestman", repo).keys()
-                                and "couldn't be found"
+                                and "Not Found"
                                 in self.git.get_repo("therattestman", repo)["message"]
                             ):
                                 # need to fork
