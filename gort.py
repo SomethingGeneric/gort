@@ -133,7 +133,7 @@ def gh_register_repo():
 @app.route('/github/webhook', methods=['POST'])
 def gh_handle_webhook():
     payload = request.json
-    event = request.headers.get('X-Gitea-Event')
+    event = request.headers.get('X-GitHub-Event')
     
     if event == 'issues' or event == 'issue_comment':
         action = payload.get('action')
@@ -146,7 +146,7 @@ def gh_handle_webhook():
         
         if action == 'opened' or action == 'created':
             # Fetch issue comments
-            comments = mygithub.get_issue_comments(user, repo_name, issue_number)  # Use mygithub instead of mygit
+            comments = mygithub.get_issue_comments(user, repo_name, issue_number)
             
             if len(comments) != 0 and comments[-1]['user']['login'] == 'gort':
                 print("I was the last commenter, skipping...")
@@ -157,7 +157,7 @@ def gh_handle_webhook():
             print("Got from AI:", ai_resp)
             
             # Post comment to the issue
-            mygithub.post_issue_comment(user, repo_name, issue_number, ai_resp)  # Use mygithub instead of mygit
+            mygithub.post_issue_comment(user, repo_name, issue_number, ai_resp)
             print("Posted response to issue", issue_number, "in", user, repo_name)
     
     return jsonify({"status": "success"}), 200
