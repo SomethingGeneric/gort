@@ -63,6 +63,21 @@ Do NOT run git commands directly. Use the provided functions instead.
 
 """
 
+    def create_messages_from_comments(self, comments, title, body=None):
+
+        dialogue = [{"role": "user", "content": "Issue is titled: " + title}]
+        if body:
+            dialogue.append({"role": "user", "content": "Issue body: " + body})
+
+        for comment in comments:
+            usern = comment["user"]["login"] if "user" in comment else "mystery"
+            role = "user" if usern != "therattestman" else "assistant"
+            body = comment["body"]
+
+            message = {"role": role, "content": body}
+            dialogue.append(message)
+        return dialogue
+
     def process_tool_calls(self, tool_calls, owner, repo):
         outputs = []
         for thing in tool_calls:
