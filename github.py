@@ -9,8 +9,8 @@ class GitHubApi:
     def __init__(self, config):
         self.token = config["github_pat"]
         self.headers = {
-            'Authorization': f'token {self.token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"token {self.token}",
+            "Content-Type": "application/json",
         }
 
     def add_webhook(self, owner, repo, config):
@@ -25,7 +25,7 @@ class GitHubApi:
         Returns:
             list: A list of usernames.
         """
-        return ['SomethingGeneric']
+        return ["SomethingGeneric"]
 
     def get_user_orgs(self, username):
         """
@@ -233,9 +233,7 @@ class GitHubApi:
         except:
             return {"msg": response.text}
 
-    def create_pull_request(
-        self, owner, repo, title, body, head_branch, base_branch
-    ):
+    def create_pull_request(self, owner, repo, title, body, head_branch, base_branch):
         """
         Creates a pull request from a user's repository to the source repository.
 
@@ -270,5 +268,5 @@ if __name__ == "__main__":
 
     g = GitHubApi(toml.load("config.toml"))
 
-    #print(g.get_repo('SomethingGeneric', 'gort'))
-    print(g.get_repo('therattestman', 'gort'))
+    # print(g.get_repo('SomethingGeneric', 'gort'))
+    print(g.get_repo("therattestman", "gort"))

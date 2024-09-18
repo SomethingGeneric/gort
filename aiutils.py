@@ -61,7 +61,7 @@ You will also be operating on a fork of the repository, not the original, so tha
 Assuming that you don't need to ask for clarification, you should follow this process:
 1. Use shell commands to find relevant files and read them
 2. Use shell commands and/or writefile to make changes
-3. Use commit to commit and push the changes to your fork of the repository
+3. Use the push command to commit and push the changes to your fork of the repository
 4. Use pr to create a pull request with the changes to the user's repository
 
 You can repeat steps 1 and 2 as many times as needed before committing/pushing and opening a pull request.
@@ -133,7 +133,8 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
 
                         if not os.path.exists(repo):
                             if (
-                                "message" in self.git.get_repo("therattestman", repo).keys()
+                                "message"
+                                in self.git.get_repo("therattestman", repo).keys()
                                 and "Not Found"
                                 in self.git.get_repo("therattestman", repo)["message"]
                             ):
@@ -213,7 +214,7 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                     "output": "Error writing file: " + str(e),
                                 }
                             outputs.append(me)
-                        elif "commit" in name or "push" in name:
+                        elif "push" in name:
                             try:
 
                                 command = "git status --porcelain"
@@ -221,9 +222,7 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                 if outp:  # If there is output, changes are detected
                                     # Git commit changes
                                     msg = arguments_dict["message"]
-                                    commit_cmd = (
-                                        f"git add . && git commit -m '{msg}'"
-                                    )
+                                    commit_cmd = f"git add . && git commit -m '{msg}'"
                                     commit_code, commit_outp = run_shell_command(
                                         commit_cmd, cwd=repo
                                     )
@@ -265,17 +264,15 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                 }
 
                                 outputs.append(me)
-
-                            shutil.rmtree(repo)
                         elif "pr" in name:
-                            base_branch = 'main'
-                            head_branch = 'therattestman:main'
+                            base_branch = "main"
+                            head_branch = "therattestman:main"
                             title = arguments_dict["title"]
                             body = arguments_dict["body"]
-                            pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
-                            res = {
-                                "pr_raw": str(pr)
-                            }
+                            pr = self.git.create_pull_request(
+                                owner, repo, base_branch, head_branch, title, body
+                            )
+                            res = {"pr_raw": str(pr)}
                             me = {
                                 "tool_call_id": call_id,
                                 "output": str(res),

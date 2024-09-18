@@ -10,8 +10,8 @@ class GiteaApi:
         self.url = config["gitea_endpoint"]
         self.endpoint = self.url
         self.headers = {
-            'Authorization': f'token {self.token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"token {self.token}",
+            "Content-Type": "application/json",
         }
 
     def add_webhook(self, owner, repo, config):
