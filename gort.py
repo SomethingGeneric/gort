@@ -92,7 +92,7 @@ def gt_handle_webhook():
             # Fetch issue comments
             comments = mygitea.get_issue_comments(user, repo_name, issue_number)
             
-            if len(comments) != 0 and comments[-1]['user']['login'] == 'gort':
+            if len(comments) != 0 and comments[-1]['user']['login'] == config['gitea_username']:
                 print("I was the last commenter, skipping...")
                 return jsonify({"status": "skipped"}), 200
             
@@ -150,7 +150,7 @@ def gh_handle_webhook():
             # Fetch issue comments
             comments = mygithub.get_issue_comments(user, repo_name, issue_number)
             
-            if len(comments) != 0 and comments[-1]['user']['login'] == 'gort':
+            if len(comments) != 0 and comments[-1]['user']['login'] == config['github_username']:
                 print("I was the last commenter, skipping...")
                 return jsonify({"status": "skipped"}), 200
             
