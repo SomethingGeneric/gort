@@ -58,6 +58,11 @@ You can then inform the user of the changes you made and the commit message you 
 If you have changed files, and made a git commit, you should also then make a pull request with the pr command.
 The output should include a link to the PR that you *should* include in your response to the user.
 
+If you've changed files, you should use tools in this *exact* order, to ensure the changes are useful to the user:
+1. writefile (and/or shell as needed)
+2. commit
+3. pr
+
 """
 
     def create_messages_from_comments(self, comments, title, body=None):
