@@ -1,6 +1,7 @@
 import os, json, subprocess, shutil
 from time import sleep
 import subprocess
+import time
 
 import openai
 
@@ -83,10 +84,9 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
             dialogue.append(message)
         return dialogue
 
+
     def get_response(self, comments, title, body, repo_slug):
-        thread = (
-            openai.beta.threads.create()
-        )  # TODO: save a thread for each issue, and load it if it exists
+        thread = openai.beta.threads.create()  # TODO: save a thread for each issue, and load it if it exists
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
 
@@ -107,137 +107,119 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
         finished = False
 
         while not finished:
-
+            # Log run status
             run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+            print(f"Run status: {run.status}")
 
             if run.status == "completed":
                 finished = True
                 omessages = openai.beta.threads.messages.list(thread_id=thread.id)
                 omessage = omessages.data[0]
                 raw_resp = omessage.content[0].text.value
-                shutil.rmtree(repo) # clean up
+                shutil.rmtree(repo)  # clean up
                 return raw_resp
+
             elif run.status == "failed":
                 finished = True
                 return "The AI failed to generate a response."
+
             elif run.status == "requires_action":
                 action = run.required_action
-                for thing in action.submit_tool_outputs.tool_calls:
+                tool_calls = action.submit_tool_outputs.tool_calls
 
+                print(f"Number of tool calls received: {len(tool_calls)}")
+
+                for thing in tool_calls:
                     try:
-
                         arguments_json = thing.function.arguments
                         arguments_dict = json.loads(arguments_json)
 
                         name = thing.function.name
                         call_id = thing.id
 
+                        print(f"Processing tool call with ID: {call_id}, Name: {name}")
+
                         if not os.path.exists(repo):
-                            if (
-                                "message"
-                                in self.git.get_repo("therattestman", repo).keys()
-                                and "Not Found"
-                                in self.git.get_repo("therattestman", repo)["message"]
-                            ):
+                            repo_check = self.git.get_repo("therattestman", repo)
+                            if "message" in repo_check and "Not Found" in repo_check["message"]:
                                 # need to fork
                                 print("Forking repo")
-                                self.git.fork_repo(owner, repo) #TODO: show result somehow?
+                                self.git.fork_repo(owner, repo)
 
-                            print("Cloning repo: " + repo)
+                            print(f"Cloning repo: {repo}")
                             print(f"Target URL: git@github.com:therattestman/{repo}.git")
-                            os.system(
-                                f"git clone git@github.com:therattestman/{repo}.git"
-                            )
+                            os.system(f"git clone git@github.com:therattestman/{repo}.git")
                         else:
                             os.system(f"cd {repo} && git pull")
-
-                        print(f"Doing action {str(name)} for call: {str(call_id)}")
 
                         outputs = []
 
                         if "shell" in name:
-
-                            # required
                             command = arguments_dict["command"]
-
-                            print("Running command: " + command)
+                            print(f"Running shell command: {command}")
 
                             try:
                                 code, outp = run_shell_command(command, cwd=repo)
-
                                 res = {
                                     "exit_code": code,
                                     "stdout": outp,
                                 }
-
-                                print("No exception occurred, exit code " + str(code))
                             except Exception as e:
                                 res = {
                                     "exit_code": -1,
-                                    "stdout": "The backend reports error: " + str(e),
+                                    "stdout": f"Error running shell command: {str(e)}",
                                 }
-                                print("Exception occurred, exit code " + str(code))
 
-                            me = {
+                            outputs.append({
                                 "tool_call_id": call_id,
-                                "output": str(res),
-                            }
-
-                            outputs.append(me)
-
-                            print("Shell stats done")
+                                "output": json.dumps(res),
+                            })
+                            print(f"Shell command result: {res}")
 
                         elif "gitlog" in name:
                             command = "git --no-pager log"
-                            code, outp = run_shell_command(command, cwd=repo)
+                            print("Running git log")
 
+                            code, outp = run_shell_command(command, cwd=repo)
                             res = {
                                 "exit_code": code,
                                 "stdout": outp,
                             }
 
-                            me = {
+                            outputs.append({
                                 "tool_call_id": call_id,
-                                "output": str(res),
-                            }
+                                "output": json.dumps(res),
+                            })
+                            print(f"Git log result: {res}")
 
-                            outputs.append(me)
                         elif "writefile" in name:
                             try:
                                 filename = arguments_dict["path"]
                                 content = arguments_dict["content"]
                                 with open(f"{repo}/{filename}", "w") as f:
                                     f.write(content)
-                                me = {
-                                    "tool_call_id": call_id,
-                                    "output": "File written successfully.",
-                                }
+                                res = "File written successfully."
                             except Exception as e:
-                                me = {
-                                    "tool_call_id": call_id,
-                                    "output": "Error writing file: " + str(e),
-                                }
-                            outputs.append(me)
-                        elif "push" in name:
-                            try:
+                                res = f"Error writing file: {str(e)}"
 
+                            outputs.append({
+                                "tool_call_id": call_id,
+                                "output": res,
+                            })
+                            print(f"Write file result: {res}")
+
+                        elif "push" in name:
+                            print("Running git push")
+                            try:
                                 command = "git status --porcelain"
                                 code, outp = run_shell_command(command, cwd=repo)
-                                if outp:  # If there is output, changes are detected
-                                    # Git commit changes
+                                if outp:
                                     msg = arguments_dict["message"]
                                     commit_cmd = f"git add . && git commit -m '{msg}'"
-                                    commit_code, commit_outp = run_shell_command(
-                                        commit_cmd, cwd=repo
-                                    )
-                                    print(f"Commit operation output: {commit_outp}")
+                                    commit_code, commit_outp = run_shell_command(commit_cmd, cwd=repo)
 
-                                    # Git push changes
                                     push_cmd = "git push origin"
-                                    push_code, push_outp = run_shell_command(
-                                        push_cmd, cwd=repo
-                                    )
-                                    print(f"Push operation output: {push_outp}")
+                                    push_code, push_outp = run_shell_command(push_cmd, cwd=repo)
 
                                     res = {
                                         "commit_code": commit_code,
@@ -246,49 +228,42 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                         "push_stdout": push_outp,
                                     }
                                 else:
-                                    res = {
-                                        "push_stdout": "No changes detected, no commit or push was made."
-                                    }
-
-                                me = {
-                                    "tool_call_id": call_id,
-                                    "output": str(res),
-                                }
-
-                                outputs.append(me)
+                                    res = "No changes to commit and push."
 
                             except Exception as push_exception:
-                                print(
-                                    f"An error occurred while pushing changes: {push_exception}"
-                                )
+                                res = f"Error pushing changes: {str(push_exception)}"
 
-                                me = {
-                                    "tool_call_id": call_id,
-                                    "output": "Error occured: " + str(push_exception),
-                                }
+                            outputs.append({
+                                "tool_call_id": call_id,
+                                "output": json.dumps(res),
+                            })
+                            print(f"Push result: {res}")
 
-                                outputs.append(me)
                         elif "pr" in name:
                             base_branch = "main"
                             head_branch = "therattestman:main"
                             title = arguments_dict["title"]
                             body = arguments_dict["body"]
-                            pr = self.git.create_pull_request(
-                                owner, repo, base_branch, head_branch, title, body
-                            )
+                            pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
                             res = {"pr_raw": str(pr)}
-                            me = {
+
+                            outputs.append({
                                 "tool_call_id": call_id,
-                                "output": str(res),
-                            }
-                            outputs.append(me)
+                                "output": json.dumps(res),
+                            })
+                            print(f"Pull request result: {res}")
+
                         else:
-                            print("Unknown action name: " + str(name))
-                            me = {
+                            print(f"Unknown action name: {name}")
+                            res = f"Unknown action name: {name}"
+                            outputs.append({
                                 "tool_call_id": call_id,
-                                "output": "Unknown action name: " + str(name),
-                            }
-                            outputs.append(me)
+                                "output": res,
+                            })
+
+                        # Log and submit tool outputs
+                        print(f"Submitting tool outputs for call ID: {call_id}")
+                        print(f"Outputs: {json.dumps(outputs, indent=2)}")
 
                         run = openai.beta.threads.runs.submit_tool_outputs(
                             thread_id=thread.id,
@@ -297,7 +272,8 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                         )
 
                     except Exception as e:
-                        print("An error occurred: " + str(e))
-                        return "An error occurred: " + str(e)
+                        print(f"An error occurred while processing tool call: {str(e)}")
+                        return f"An error occurred: {str(e)}"
 
-            sleep(5)  # TODO: some kind of exponential backoff
+            time.sleep(5)  # TODO: implement exponential backoff
+
