@@ -57,7 +57,7 @@ You can then inform the user of the changes you made and the commit message you 
 
 """
 
-    def create_messages_from_comments(self, comments, title, body):
+    def create_messages_from_comments(self, comments, title, body=""):
 
         dialogue = [{"role": "user", "content": "Issue is titled: " + title}]
         dialogue.append({"role": "user", "content": "Issue body: " + body})
