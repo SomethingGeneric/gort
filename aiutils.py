@@ -67,6 +67,8 @@ Assuming that you don't need to ask for clarification, you should follow this pr
 
 You can repeat steps 1 and 2 as many times as needed before committing/pushing and opening a pull request.
 
+Do NOT run git commands directly. Use the provided functions instead.
+
 """
 
     def create_messages_from_comments(self, comments, title, body=None):
