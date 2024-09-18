@@ -55,13 +55,16 @@ If you need to modify a file, you should use the writefile function to write the
 
 You can then inform the user of the changes you made and the commit message you used, and that the changes are now in the remote repository.
 
-If you have changed files, and made a git commit, you should also then make a pull request with the pr command.
-The output should include a link to the PR that you *should* include in your response to the user.
+You are automatically put in a working directory with the relevant repository files checked out. (Cloned with git).
+You will also be operating on a fork of the repository, not the original, so that you can create pull requests with your changes.
 
-If you've changed files, you should use tools in this *exact* order, to ensure the changes are useful to the user:
-1. writefile (and/or shell as needed)
-2. commit
-3. pr
+Assuming that you don't need to ask for clarification, you should follow this process:
+1. Use shell commands to find relevant files and read them
+2. Use shell commands and/or writefile to make changes
+3. Use commit to commit and push the changes to your fork of the repository
+4. Use pr to create a pull request with the changes to the user's repository
+
+You can repeat steps 1 and 2 as many times as needed before committing/pushing and opening a pull request.
 
 """
 
