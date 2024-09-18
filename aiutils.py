@@ -94,7 +94,7 @@ Do NOT run git commands directly. Use the provided functions instead.
                 if "shell" in name:
                     command = arguments_dict["command"]
                     print(f"Running shell command: {command}")
-                    code, outp = run_shell_command(command)
+                    code, outp = run_shell_command(command, cwd=repo)
                     outputs.append(
                         {
                             "tool_call_id": call_id,
@@ -105,7 +105,7 @@ Do NOT run git commands directly. Use the provided functions instead.
                     file_path = arguments_dict["path"]
                     content = arguments_dict["content"]
                     print(f"Writing to file: {file_path}")
-                    with open(file_path, "w") as f:
+                    with open(repo + "/" + file_path, "w") as f:
                         f.write(content)
                     outputs.append(
                         {
@@ -116,7 +116,7 @@ Do NOT run git commands directly. Use the provided functions instead.
                 elif "push" in name:
                     commit_msg = arguments_dict["message"]
                     print("Pushing changes to the repository")
-                    code, outp = run_shell_command(f"git add . && git commit -m '{commit_msg}' && git push")
+                    code, outp = run_shell_command(f"git add . && git commit -m '{commit_msg}' && git push", cwd=repo)
                     outputs.append(
                         {
                             "tool_call_id": call_id,
@@ -160,6 +160,27 @@ Do NOT run git commands directly. Use the provided functions instead.
             thread_id=thread.id, assistant_id=self.assistant.id
         )
         finished = False
+
+        owner, repo = repo_slug.split("/")
+        if not os.path.exists(repo):
+            repo_check = self.git.get_repo("therattestman", repo)
+            if (
+                "message" in repo_check
+                and "Not Found" in repo_check["message"]
+            ):
+                # need to fork
+                print("Forking repo")
+                self.git.fork_repo(owner, repo)
+
+            print(f"Cloning repo: {repo}")
+            print(
+                f"Target URL: git@github.com:therattestman/{repo}.git"
+            )
+            os.system(
+                f"git clone git@github.com:therattestman/{repo}.git"
+            )
+        else:
+            os.system(f"cd {repo} && git pull")
 
         while not finished:
             run = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
