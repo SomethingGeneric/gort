@@ -256,7 +256,21 @@ You can then inform the user of the changes you made and the commit message you 
                                 outputs.append(me)
 
                             shutil.rmtree(repo)
-
+                        elif "pr" in name:
+                            base_branch = arguments_dict["base_branch"]
+                            head_branch = arguments_dict["head_branch"]
+                            title = arguments_dict["title"]
+                            body = arguments_dict["body"]
+                            pr = self.git.create_pr(owner, repo, base_branch, head_branch, title, body)
+                            res = {
+                                "pr_number": pr.number,
+                                "pr_url": pr.html_url,
+                            }
+                            me = {
+                                "tool_call_id": call_id,
+                                "output": str(res),
+                            }
+                            outputs.append(me)
                         else:
                             print("Unknown action name: " + str(name))
                             me = {
