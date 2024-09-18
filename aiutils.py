@@ -23,7 +23,7 @@ def run_shell_command(command, cwd=None):
 class llmUtils:
     def __init__(self, config):
         self.config = config
-        self.github = GitHubApi(config)
+        self.git = GitHubApi(config)
         openai.api_key = config["ai_token"]
         self.assistant = openai.beta.assistants.retrieve(config["ai_assistant_id"])
         self.pending_tool_calls = 0  # Track pending tool requests
@@ -127,7 +127,7 @@ Do NOT run git commands directly. Use the provided functions instead.
                     title = arguments_dict["title"]
                     body = arguments_dict["body"]
                     print("Creating a pull request")
-                    res = self.github.create_pull_request(owner, repo, title, body, "therattestman:main", "main")
+                    res = self.git.create_pull_request(owner, repo, title, body, "therattestman:main", "main")
                     outputs.append(
                         {
                             "tool_call_id": call_id,
