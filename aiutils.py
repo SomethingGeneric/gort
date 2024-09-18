@@ -115,6 +115,7 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                 omessages = openai.beta.threads.messages.list(thread_id=thread.id)
                 omessage = omessages.data[0]
                 raw_resp = omessage.content[0].text.value
+                shutil.rmtree(repo) # clean up
                 return raw_resp
             elif run.status == "failed":
                 finished = True
@@ -139,8 +140,11 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                 in self.git.get_repo("therattestman", repo)["message"]
                             ):
                                 # need to fork
-                                print(self.git.fork_repo(owner, repo))
+                                print("Forking repo")
+                                self.git.fork_repo(owner, repo) #TODO: show result somehow?
 
+                            print("Cloning repo: " + repo)
+                            print(f"Target URL: git@github.com:therattestman/{repo}.git")
                             os.system(
                                 f"git clone git@github.com:therattestman/{repo}.git"
                             )
