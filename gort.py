@@ -135,6 +135,8 @@ def gh_handle_webhook():
     payload = request.json
     event = request.headers.get('X-GitHub-Event')
     
+    print("Received event:", event)
+
     if event == 'issues' or event == 'issue_comment':
         action = payload.get('action')
         issue = payload.get('issue')
