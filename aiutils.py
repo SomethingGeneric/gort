@@ -174,23 +174,7 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
                                 "tool_call_id": call_id,
                                 "output": json.dumps(res),
                             })
-                            print(f"Shell command result: {res}")
-
-                        elif "gitlog" in name:
-                            command = "git --no-pager log"
-                            print("Running git log")
-
-                            code, outp = run_shell_command(command, cwd=repo)
-                            res = {
-                                "exit_code": code,
-                                "stdout": outp,
-                            }
-
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": json.dumps(res),
-                            })
-                            print(f"Git log result: {res}")
+                            print(f"Shell command exit code: {res['exit_code']}")
 
                         elif "writefile" in name:
                             try:
@@ -273,7 +257,10 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
 
                     except Exception as e:
                         print(f"An error occurred while processing tool call: {str(e)}")
-                        return f"An error occurred: {str(e)}"
+                        outputs.append({
+                            "tool_call_id": call_id,
+                            "output": f"An error occurred: {str(e)}",
+                        })
 
             time.sleep(5)  # TODO: implement exponential backoff
 
