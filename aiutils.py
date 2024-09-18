@@ -266,8 +266,6 @@ The output should include a link to the PR that you *should* include in your res
                             body = arguments_dict["body"]
                             pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
                             res = {
-                                "pr_number": pr.number,
-                                "pr_url": pr.html_url,
                                 "pr_raw": str(pr)
                             }
                             me = {
