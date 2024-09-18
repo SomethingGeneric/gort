@@ -86,9 +86,10 @@ Do NOT run git commands directly. Use the provided functions instead.
             dialogue.append(message)
         return dialogue
 
-
     def get_response(self, comments, title, body, repo_slug):
-        thread = openai.beta.threads.create()  # TODO: save a thread for each issue, and load it if it exists
+        thread = (
+            openai.beta.threads.create()
+        )  # TODO: save a thread for each issue, and load it if it exists
         msg = [{"role": "system", "content": self.main_prompt}]
         msg += self.create_messages_from_comments(comments, title, body)
 
@@ -143,14 +144,21 @@ Do NOT run git commands directly. Use the provided functions instead.
 
                         if not os.path.exists(repo):
                             repo_check = self.git.get_repo("therattestman", repo)
-                            if "message" in repo_check and "Not Found" in repo_check["message"]:
+                            if (
+                                "message" in repo_check
+                                and "Not Found" in repo_check["message"]
+                            ):
                                 # need to fork
                                 print("Forking repo")
                                 self.git.fork_repo(owner, repo)
 
                             print(f"Cloning repo: {repo}")
-                            print(f"Target URL: git@github.com:therattestman/{repo}.git")
-                            os.system(f"git clone git@github.com:therattestman/{repo}.git")
+                            print(
+                                f"Target URL: git@github.com:therattestman/{repo}.git"
+                            )
+                            os.system(
+                                f"git clone git@github.com:therattestman/{repo}.git"
+                            )
                         else:
                             os.system(f"cd {repo} && git pull")
 
@@ -172,10 +180,12 @@ Do NOT run git commands directly. Use the provided functions instead.
                                     "stdout": f"Error running shell command: {str(e)}",
                                 }
 
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": json.dumps(res),
-                            })
+                            outputs.append(
+                                {
+                                    "tool_call_id": call_id,
+                                    "output": json.dumps(res),
+                                }
+                            )
                             print(f"Shell command exit code: {res['exit_code']}")
 
                         elif "writefile" in name:
@@ -188,10 +198,12 @@ Do NOT run git commands directly. Use the provided functions instead.
                             except Exception as e:
                                 res = f"Error writing file: {str(e)}"
 
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": res,
-                            })
+                            outputs.append(
+                                {
+                                    "tool_call_id": call_id,
+                                    "output": res,
+                                }
+                            )
                             print(f"Write file result: {res}")
 
                         elif "push" in name:
@@ -202,10 +214,14 @@ Do NOT run git commands directly. Use the provided functions instead.
                                 if outp:
                                     msg = arguments_dict["message"]
                                     commit_cmd = f"git add . && git commit -m '{msg}'"
-                                    commit_code, commit_outp = run_shell_command(commit_cmd, cwd=repo)
+                                    commit_code, commit_outp = run_shell_command(
+                                        commit_cmd, cwd=repo
+                                    )
 
                                     push_cmd = "git push origin"
-                                    push_code, push_outp = run_shell_command(push_cmd, cwd=repo)
+                                    push_code, push_outp = run_shell_command(
+                                        push_cmd, cwd=repo
+                                    )
 
                                     res = {
                                         "commit_code": commit_code,
@@ -219,10 +235,12 @@ Do NOT run git commands directly. Use the provided functions instead.
                             except Exception as push_exception:
                                 res = f"Error pushing changes: {str(push_exception)}"
 
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": json.dumps(res),
-                            })
+                            outputs.append(
+                                {
+                                    "tool_call_id": call_id,
+                                    "output": json.dumps(res),
+                                }
+                            )
                             print(f"Push result: {res}")
 
                         elif "pr" in name:
@@ -230,39 +248,46 @@ Do NOT run git commands directly. Use the provided functions instead.
                             head_branch = "therattestman:main"
                             title = arguments_dict["title"]
                             body = arguments_dict["body"]
-                            pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
+                            pr = self.git.create_pull_request(
+                                owner, repo, base_branch, head_branch, title, body
+                            )
                             res = {"pr_raw": str(pr)}
 
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": json.dumps(res),
-                            })
+                            outputs.append(
+                                {
+                                    "tool_call_id": call_id,
+                                    "output": json.dumps(res),
+                                }
+                            )
                             print(f"Pull request result: {res}")
 
                         else:
                             print(f"Unknown action name: {name}")
                             res = f"Unknown action name: {name}"
-                            outputs.append({
-                                "tool_call_id": call_id,
-                                "output": res,
-                            })
+                            outputs.append(
+                                {
+                                    "tool_call_id": call_id,
+                                    "output": res,
+                                }
+                            )
 
                         # Log and submit tool outputs
                         print(f"Submitting tool outputs for call ID: {call_id}")
                         print(f"Outputs: {json.dumps(outputs, indent=2)}")
 
-                        run = openai.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread.id,
-                            run_id=run.id,
-                            tool_outputs=outputs,
-                        )
-
                     except Exception as e:
                         print(f"An error occurred while processing tool call: {str(e)}")
-                        outputs.append({
-                            "tool_call_id": call_id,
-                            "output": f"An error occurred: {str(e)}",
-                        })
+                        outputs.append(
+                            {
+                                "tool_call_id": call_id,
+                                "output": f"An error occurred: {str(e)}",
+                            }
+                        )
+
+                run = openai.beta.threads.runs.submit_tool_outputs(
+                    thread_id=thread.id,
+                    run_id=run.id,
+                    tool_outputs=outputs,
+                )
 
             time.sleep(5)  # TODO: implement exponential backoff
-
