@@ -4,7 +4,7 @@ import subprocess
 
 import openai
 
-from gitea import GiteaApi
+from github import GitHubApi
 
 
 def run_shell_command(command, cwd=None):
@@ -26,7 +26,7 @@ class llmUtils:
 
         self.assistant = openai.beta.assistants.retrieve(config["ai_assistant_id"])
 
-        self.git = GiteaApi(config)
+        self.git = GitHubApi(config)
 
         self.main_prompt = """
 You are a helpful junior developer named Gort. You are working on a project with a coworker.
