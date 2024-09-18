@@ -264,7 +264,7 @@ The output should include a link to the PR that you *should* include in your res
                             head_branch = arguments_dict["head_branch"]
                             title = arguments_dict["title"]
                             body = arguments_dict["body"]
-                            pr = self.git.create_pr(owner, repo, base_branch, head_branch, title, body)
+                            pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
                             res = {
                                 "pr_number": pr.number,
                                 "pr_url": pr.html_url,
