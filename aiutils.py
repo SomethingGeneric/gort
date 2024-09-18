@@ -268,8 +268,8 @@ You can repeat steps 1 and 2 as many times as needed before committing/pushing a
 
                             shutil.rmtree(repo)
                         elif "pr" in name:
-                            base_branch = arguments_dict["base_branch"]
-                            head_branch = arguments_dict["head_branch"]
+                            base_branch = 'main'
+                            head_branch = 'therattestman:main'
                             title = arguments_dict["title"]
                             body = arguments_dict["body"]
                             pr = self.git.create_pull_request(owner, repo, base_branch, head_branch, title, body)
